@@ -34,12 +34,16 @@ use IEEE.NUMERIC_STD.ALL;
 entity sobel_sum_squares is
     Port ( g1 : in STD_LOGIC_VECTOR (31 downto 0);
         g2 : in STD_LOGIC_VECTOR (31 downto 0);
-        s : out STD_LOGIC_VECTOR (31 downto 0));end sobel_sum_squares;
+        s : out STD_LOGIC_VECTOR (31 downto 0));
+end sobel_sum_squares;
 
 architecture Behavioral of sobel_sum_squares is
 
+signal full : STD_LOGIC_VECTOR (63 downto 0)
+
 begin
 
-    s <= STD_LOGIC_VECTOR(signed(g1) * signed(g1) + signed(g2) * signed(g2));
+    full <= STD_LOGIC_VECTOR(signed(g1) * signed(g1) + signed(g2) * signed(g2));
+    s <= full(31 downto 0);
 
 end Behavioral;
