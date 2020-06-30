@@ -1,0 +1,120 @@
+</html lang="en">
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>ZC706 Sobel</title>
+    <style>
+        .d-none {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>ZC706 Sobel</h2>
+    <p id="status">OpenCV is loading...</p>
+    <div class="d-none">
+        <textarea id="textOutput" rows="10" cols="100"></textarea>
+        <div class="caption">Select an Image <input type="file" id="fileInput" name="file" /></div>
+        <div class="inputoutput">
+            <img id="imageSrc" alt="No Image" />
+        </div>
+        <div class="inputoutput">
+            <canvas id="canvasOutput"></canvas>
+            <div class="caption">Output</div>
+        </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        let imgElement = document.getElementById('imageSrc');
+        let inputElement = document.getElementById('fileInput');
+        let textOutput = document.getElementById('textOutput');
+        var init = Date.now();
+        var mat = null;
+        inputElement.addEventListener('change', (e) => {
+            imgElement.src = URL.createObjectURL(e.target.files[0]);
+            init = Date.now();
+        }, false);
+        imgElement.onload = function () {
+            mat = cv.imread(imgElement);
+            var t = Date.now() - init;
+            textOutput.innerHTML += 'Time to read image: ';
+            textOutput.innerHTML += t + ' ms\n';
+            textOutput.innerHTML += 'Image length: ';
+            textOutput.innerHTML += mat.data.length + ' bytes\n';
+            let dst = new cv.Mat();
+            cv.cvtColor(mat, dst, cv.COLOR_RGBA2GRAY);
+            textOutput.innerHTML += 'Gray image length: ';
+            textOutput.innerHTML += dst.data.length + ' bytes\n';
+            mat = dst;
+            init = Date.now();
+            send();
+        };
+        function onOpenCvReady() {
+            var t = Date.now() - init;
+            textOutput.innerHTML += 'Time to load OpenCV: ';
+            textOutput.innerHTML += t + ' ms\n';
+            document.getElementById('status').innerHTML = 'OpenCV is ready.';
+            document.querySelector('.d-none').classList.remove('d-none');
+        }
+        function send() {
+            var fd = new FormData();
+            fd.append('rows', mat.rows);
+            fd.append('cols', mat.cols);
+            fd.append('data', new Blob([mat.data]));
+            $.ajax({
+                type: 'POST',
+                url: '/data',
+                data: fd,
+                processData: false,
+                contentType: false
+            }).done(function () {
+                var t = Date.now() - init;
+                textOutput.innerHTML += 'Time to send image: ';
+                textOutput.innerHTML += t + ' ms\n';
+                init = Date.now();
+                setTimeout(receive, 1);
+            });
+        }
+        function receive() {
+            $.ajax({
+                type: 'GET',
+                url: '/data',
+                cache: false,
+                xhrFields: {
+                    responseType: 'blob'
+                }
+            }).done(function (data) {
+                var fileReader = new FileReader();
+                fileReader.onload = function () {
+                    var t = Date.now() - init;
+                    textOutput.innerHTML += 'Time to recieve image: ';
+                    textOutput.innerHTML += t + ' ms\n';
+                    textOutput.innerHTML += 'Image length: ';
+                    textOutput.innerHTML += this.result.byteLength + ' bytes\n';
+                    var arr = new Uint8Array(this.result);
+                    var mat2;
+                    if (arr.length === mat.cols * mat.rows) {
+                        mat2 = cv.matFromArray(mat.rows, mat.cols, cv.CV_8UC1, arr);
+                    } else {
+                        mat2 = cv.matFromArray(mat.rows - 2, mat.cols - 2, cv.CV_8UC1, arr);
+                    }
+                    cv.imshow('canvasOutput', mat2);
+                    textOutput.innerHTML += 'Image shown\n';
+                    mat2.delete();
+                    mat.delete();
+                };
+                fileReader.readAsArrayBuffer(data);
+            }).fail(function () {
+                setTimeout(receive, 60000);
+            });
+        }
+    </script>
+    <script async src="https://docs.opencv.org/master/opencv.js" onload="onOpenCvReady();"
+        type="text/javascript"></script>
+</body>
+
+</html>
